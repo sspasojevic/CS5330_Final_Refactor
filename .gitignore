@@ -1,0 +1,37 @@
+# Ignore data_model directory and all its contents
+/data_model/
+
+# Python virtual environments
+/.venv/
+/.venv_mediapipe/
+/venv/
+/env/
+
+# Python bytecode
+__pycache__/
+*.py[cod]
+*$py.class
+
+# Distribution / packaging
+/dist/
+/build/
+*.egg-info/
+
+# PyCharm
+/.idea/
+
+# VS Code
+/.vscode/
+
+# Model weights and large files
+*.pth
+*.h5
+*.ckpt
+*.pb
+
+# macOS
+.DS_Store
+
+# Logs
+*.log
+logs/
