@@ -7,6 +7,13 @@
     that we’re doing this motion.
 """
 
+from utilities.model.network import GestureClassifier
+import os
+import torch
+import mediapipe as mp
+import cv2
+import numpy as np
+
 
 class GestureRecognizer:
     def __init__(self, state_changer):
@@ -17,17 +24,43 @@ class GestureRecognizer:
         
         movements = {0: "scale", 1: "move", 2: "rotate_Y_clockwise", 3: "rotate_Y_counterclockwise"}
         
-    def classify_gesture(self):
+        # -------- Initialize the model from the saved weights ---------
+        self.num_classes = 8 
+        self.model = GestureClassifier(num_classes=self.num_classes)
+
+        script_dir = os.path.dirname(os.path.abspath(__file__))
+        weights_path = os.path.join(script_dir, "../utilities/model", "gesture_classifier_weights.pth")
+
+        self.model.load_state_dict(torch.load(weights_path, map_location=torch.device('cpu')))
+        self.model.eval()  # Set to evaluation mode
+        
+        # -------- Initialize the hands from MediaPipe ---------
+        self.hands = mp.solutions.hands.Hands(
+            static_image_mode=False,
+            max_num_hands=2,
+            min_detection_confidence=0.5,
+            min_tracking_confidence=0.5
+        )
+        self.mp_drawing = mp.solutions.drawing_utils
+        
+    def classify_gesture(self, frame):
         """
             This will take the frame and return 1 or 2 gestures in the frame. 
-            
-            Note: have to think about handling instances of incorrectly classified 1 frame in a series of other
-            correctly classified ones. 
-            Example: when rotating, sometimes a hand reads as scale - need to disable switching to scale.
         """
         
-        pass
-    
+        frame_rgb = cv2.cvtColor(frame, cv2.COLOR_BGR2RGB)
+        gestures = self.hands.process(frame_rgb)
+        
+        if gestures.multi_hand_landmarks:
+            for hand in gestures.multi_hand_landmarks:
+                
+                # Draw the landmark; can erase later
+                self.mp_drawing.draw_landmarks(frame, hand, mp.solutions.hands.HAND_CONNECTIONS)
+        
+        
+        # NEED TO DO CLASSIFICATION
+        
+
     def get_movement(self):
         """
             This will return the name of the movement we're performing.
@@ -89,10 +122,15 @@ class GestureRecognizer:
         """
             Function that will run the entire logic and call the above function.
             This one will also update the state_changer.
+            
+            Note: have to think about handling instances of incorrectly classified 1 frame in a series of other
+            correctly classified ones. 
+            Example: when rotating, sometimes a hand reads as scale - need to disable switching to scale.
         """
         
         self.frame = frame
         # We might need to set up whatever we will memorize in terms of previous frame or previous delta...
         
-        pass
+        self.classify_gesture(self.frame)
+    
     

@@ -4,11 +4,11 @@ import moderngl_window as mglw
 from pyrr import Matrix44, Vector3  # For matrix math
 from moderngl_window import WindowConfig
 from pathlib import Path
-from orbit_camera import OrbitCamera
-from shader_program import ShaderProgram
-from scene_object import SceneObject
-from gesture_recognizer import GestureRecognizer
-from state_changer import StateChanger
+from program.orbit_camera import OrbitCamera
+from program.shader_program import ShaderProgram
+from program.scene_object import SceneObject
+from program.gesture_recognizer import GestureRecognizer
+from program.state_changer import StateChanger
 # from imgui_bundle import imgui
 # from moderngl_window.integrations.imgui_bundle import ModernglWindowRenderer
 
@@ -21,7 +21,7 @@ class Scene(WindowConfig):
     title = "OpenCV + ModernGL"
     window_size = (1024, 768)
     gl_version = (3, 3)
-    resource_dir = (Path(__file__).parent.parent / 'utilities' / 'render_data').resolve()
+    resource_dir = (Path(__file__).parent / 'utilities' / 'render_data').resolve()
     sampels = 4 # multi-sampling
     resizable = False
     vsync = True
@@ -83,9 +83,9 @@ class Scene(WindowConfig):
         ret, frame = self.cap.read()
         if ret:
             frame = cv2.flip(frame, 1)
-            cv2.imshow("Webcam", frame)
-            ##### TODO: send frame to the model to parse for commands.
+            
             self.gesture_recognizer.process(frame)
+            cv2.imshow("Webcam", frame)
 
             # if cv2.waitKey(1) & 0xFF == 27: # ESC key
             #     self.wnd.close()
