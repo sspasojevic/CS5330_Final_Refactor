@@ -19,7 +19,8 @@ class GestureRecognizer:
     def __init__(self, state_changer):
         self.state_changer = state_changer
         
-        gestures = {0: "grab_move_left", 1: "grab_move_right", 2: "hold_left", 3: "hold_right", 4: "scale_left_hand",
+        # -------- Gestures and movements ---------
+        self.gestures = {0: "grab_move_left", 1: "grab_move_right", 2: "hold_left", 3: "hold_right", 4: "scale_left_hand",
                5: "scale_right_hand", 6: "swipe_left_hand", 7: "swipe_right_hand"}
         
         movements = {0: "scale", 1: "move", 2: "rotate_Y_clockwise", 3: "rotate_Y_counterclockwise"}
@@ -37,7 +38,7 @@ class GestureRecognizer:
         # -------- Initialize the hands from MediaPipe ---------
         self.hands = mp.solutions.hands.Hands(
             static_image_mode=False,
-            max_num_hands=2,
+            max_num_hands=1,
             min_detection_confidence=0.5,
             min_tracking_confidence=0.5
         )
@@ -45,8 +46,10 @@ class GestureRecognizer:
         
     def classify_gesture(self, frame):
         """
-            This will take the frame and return 1 or 2 gestures in the frame. 
+            Takes a frame, finds a hand, classifies the gesture, draws it on screen, returns gesture name and landmarks.
         """
+        
+        results = {}
         
         frame_rgb = cv2.cvtColor(frame, cv2.COLOR_BGR2RGB)
         gestures = self.hands.process(frame_rgb)
@@ -58,20 +61,49 @@ class GestureRecognizer:
                 self.mp_drawing.draw_landmarks(frame, hand, mp.solutions.hands.HAND_CONNECTIONS)
         
         
-        # NEED TO DO CLASSIFICATION
+                # -------- Get the 63 landmarks and flatten ---------
+                landmarks = []
+                for lm in hand.landmark:
+                    landmarks.extend([lm.x, lm.y, lm.z])
+                landmarks = np.array(landmarks, dtype=np.float32)
+                # Convert to PyTorch tensor and add batch dimension
+                input_tensor = torch.tensor(landmarks).unsqueeze(0)
+                
+                # -------- Classify gesture ---------
+                with torch.no_grad():
+                    outputs = self.model(input_tensor)
+                    predicted_class = torch.argmax(outputs, dim=1).item()
+                gesture_name = self.gestures.get(predicted_class, "Unknown")
+                
+                results[gesture_name] = hand
+                
+                # -------- Writes the name in frame ---------
+                h, w, _ = frame.shape
+                wrist = hand.landmark[0]
+                cx, cy = int(wrist.x * w), int(wrist.y * h)
+                cv2.putText(frame, gesture_name, (cx, cy - 10),
+                            cv2.FONT_HERSHEY_SIMPLEX, 1, (0, 255, 0), 2)
         
+        return results
 
-    def get_movement(self):
+    def get_movement(self, gesture_name):
         """
             This will return the name of the movement we're performing.
-            
-            hold_left + swipe_right_hand will be rotate_Y_clockwise
-            hold_right + swipe_left_hand will be rotate_Y_counterclockwise
-            grab_move_left OR grab_move_right will be move
-            scale_left_hand OR scale_right_hand will be scale
         """
+        movement = ""
     
-        pass
+        if gesture_name == "scale_left_hand" or gesture_name == "scale_right_hand":
+            movement = "scale"
+        elif gesture_name == "grab_move_left" or gesture_name == "grab_move_right":
+            movement = "move"
+        elif gesture_name == "swipe_right_hand":
+            movement = "rotate_Y_clockwise"
+        elif gesture_name == "swipe_left_hand":
+            movement = "rotate_Y_counterclockwise"
+        elif gesture_name == "hold_left" or gesture_name == "hold_right":
+            movement = "no_movement"
+            
+        return movement   
         
     def check_is_move_active(self):
         """
@@ -131,6 +163,11 @@ class GestureRecognizer:
         self.frame = frame
         # We might need to set up whatever we will memorize in terms of previous frame or previous delta...
         
-        self.classify_gesture(self.frame)
-    
+        results = self.classify_gesture(self.frame) # Returns dictionary of "gesture_name: 21 landmarks"
+        
+        # Will get first key name if it exists
+        gesture_name = next(iter(results), "")
+        
+        movement = self.get_movement(gesture_name)
+        print(movement) # Debugging
     

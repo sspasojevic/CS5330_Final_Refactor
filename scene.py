@@ -70,7 +70,7 @@ class Scene(WindowConfig):
         self.cam_speed = 2.5 # Camera speed when moving
 
         # OpenCV webcam
-        self.cap = cv2.VideoCapture(1)
+        self.cap = cv2.VideoCapture(0)
 
     def on_render(self, time:float , frame_time: float) -> None:
         """The rendering pipeline for this program.
@@ -82,7 +82,6 @@ class Scene(WindowConfig):
         # Read a frame from webcam
         ret, frame = self.cap.read()
         if ret:
-            frame = cv2.flip(frame, 1)
             
             self.gesture_recognizer.process(frame)
             cv2.imshow("Webcam", frame)
