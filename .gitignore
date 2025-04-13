@@ -1,5 +1,5 @@
 # Ignore data_model directory and all its contents
-/utilities/training_data/
+/utilities/training_data/*/
 
 # Python virtual environments
 /.venv/
