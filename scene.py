@@ -87,7 +87,7 @@ class Scene(WindowConfig):
 
     def process_frames(self):
         # OpenCV webcam
-        self.cap = cv2.VideoCapture(0)
+        self.cap = cv2.VideoCapture(1)
 
         while self.processing_active:
             ret, frame = self.cap.read()
@@ -266,7 +266,8 @@ class Scene(WindowConfig):
         if object.state_changer:
             # Scale in all 3 axes at once
             for i in range(3):
-                object.scale[i] = min(10, max(0.1, object.scale[i] + scale_delta * dt)) # Clip to [0.1, 10]
+                target_scale = object.scale[i] + scale_delta * dt
+                object.scale[i] = min(10, max(0.1, object.scale[i] * (1 - 0.1) + target_scale * 0.1))
 
             # Rotation about Y axis only
             object.rotation[1] += rotation_delta * dt

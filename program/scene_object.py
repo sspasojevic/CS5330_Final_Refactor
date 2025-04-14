@@ -18,10 +18,10 @@ class SceneObject:
         self.texture = texture
         self.state_changer = state_changer
 
-        self.position = [0.0, 0.0, 0.0] 
-        self.scale = [1.0, 1.0, 1.0]    
+        self.position = [5, 0.0, 0.0]
+        self.scale = [1.0, 1.0, 1.0]
         self.rotation = [0.0, 0.0, 0.0]
-        
+
         # For keyboard controls
         self.scale_speed = 0.5
         self.rotation_speed = 45 # deg

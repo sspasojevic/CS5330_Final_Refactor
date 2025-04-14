@@ -31,3 +31,8 @@ class StateChanger:
         self.scale_delta = 0
         self.rotation_delta = 0
         self.translation_delta = (x, y)
+
+    def reset(self):
+        self.scale_delta = 0
+        self.rotation_delta = 0
+        self.translation_delta = (0, 0)

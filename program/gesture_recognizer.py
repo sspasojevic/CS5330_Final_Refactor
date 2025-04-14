@@ -145,7 +145,7 @@ class GestureRecognizer:
 
         delta = (distance - self.last_distance)
         # round to nearest integer
-        delta = round(delta) / 10
+        delta = round(delta)
 
         self.last_distance = distance
         return delta
@@ -214,7 +214,7 @@ class GestureRecognizer:
 
 
         movement = self.get_movement(gesture_name)
-        print(movement) # Debugging
+        # print(movement) # Debugging
 
         # with self.lock:         # Lock only while the state is being updated
         #     if movement == "scale":
@@ -232,10 +232,14 @@ class GestureRecognizer:
 
         if movement == "scale":
             delta = self.calculate_scale_delta(results, frame, gesture_name)
-            if abs(delta) >= 0.5:
+            if abs(delta) >= 3:
                 self.state_changer.update_scale_delta(delta)
                 print(self.state_changer.scale_delta)
+            else:
+                self.state_changer.reset()
         elif movement == "move":
             self.calculate_translation_delta()
         elif movement == "rotate":
             self.calculate_rotation_delta()
+        else:
+            self.state_changer.reset()
