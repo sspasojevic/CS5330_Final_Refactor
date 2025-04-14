@@ -1,9 +1,10 @@
 from pyrr import Matrix44, Vector3
 from moderngl import Context, Program, Texture
 from math import radians
+from state_changer import StateChanger
 
 class SceneObject:
-    def __init__(self, vao, texture: Texture, editable=False):
+    def __init__(self, vao, texture: Texture, state_changer: StateChanger=None):
         """Initializes an object to be rendered via it's mesh VAO. The position, scale, and rotation are
         automatically set to pos=[0,0,0], scale=[1,1,1], and rotation=[0,0,0]
 
@@ -15,13 +16,13 @@ class SceneObject:
 
         self.vao = vao
         self.texture = texture
-        self.position = [0.0, 0.0, 0.0] 
-        
-        self.scale = [1.0, 1.0, 1.0]
-        self.rotation = [0.0, 0.0, 0.0]
-        self.editable = editable 
+        self.state_changer = state_changer
 
-                # For keyboard controls
+        self.position = [0.0, 0.0, 0.0] 
+        self.scale = [1.0, 1.0, 1.0]    
+        self.rotation = [0.0, 0.0, 0.0]
+        
+        # For keyboard controls
         self.scale_speed = 0.5
         self.rotation_speed = 45 # deg
         self.translation_speed = 2.0

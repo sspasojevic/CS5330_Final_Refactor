@@ -38,12 +38,12 @@ class Scene(WindowConfig):
         # OpenCV webcam
         self.cap = cv2.VideoCapture(0)
 
-        # Set up for multi-threading
-        self.frame_ready = False
-        self.current_frame = None
-        self.processed_frame = None
-        self.lock = threading.Lock()
+        # Set up for multi-threading 
+        # self.frame_ready = False
+        # self.current_frame = None
+        # self.processed_frame = None
 
+        self.lock = threading.Lock()
         self.processing_active = True
         self.processing_thread = threading.Thread(target=self.process_frames, daemon=True) # Daemon ensures the thread ends with the main program.
         self.processing_thread.start()
@@ -96,6 +96,9 @@ class Scene(WindowConfig):
                 # is also interacting with the gesture recognizer.
                 with self.lock:
                     self.gesture_recognizer.process(frame) # Send the frame to the gesture recognizer for processing and state updates
+
+                with self.lock:
+                    self.state_changer.update()
                     #### Update deltas here unless it's done in process(frame).
                 
                 
