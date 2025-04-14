@@ -36,14 +36,14 @@ class Scene(WindowConfig):
         """
         super().__init__(**kwargs)
         self.wnd.ctx.error
-         
+
         self.q = queue.Queue(1) # Create a queue to hold the most recent frame
 
         # State changer and gesture recognizer will modify the object parameters
         self.state_changer = StateChanger()
         self.gesture_recognizer = GestureRecognizer(self.state_changer)
 
-        # Set up for multi-threading 
+        # Set up for multi-threading
         self.lock = threading.Lock()
 
         self.processing_active = True
@@ -53,7 +53,7 @@ class Scene(WindowConfig):
         self.processing_thread.start()
         self.model_thread.start()
 
-        
+
         self.shader_program = ShaderProgram(self.ctx)
         assert Path(self.resource_dir, "shaders/vertex.glsl").exists(), "Vertex shader program not found"
         assert Path(self.resource_dir, "shaders/fragment.glsl").exists(), "Fragment shader program not found"
@@ -93,14 +93,14 @@ class Scene(WindowConfig):
             ret, frame = self.cap.read()
             if ret:
                 frame = cv2.flip(frame, 1)
-                cv2.imshow("Webcam", frame)  # display the frame in another window
+                # cv2.imshow("Webcam", frame)  # display the frame in another window
                 cv2.waitKey(1)
 
                 if not self.q.full():           # Will only add a frame to the queue if it's empty and ready to be examined by the model
                     self.q.put(frame.copy())    # Copy will create a standalone frame to save here, rather than passing a reference to the original frame.
 
                 # time.sleep(5) ### Add artificial lag here if desired for testing
-                       
+
     def run_gesture_model(self):
         """Tertiary thread that runs the gesture recognizer model. Will try to intake an image from the queue and process it
         Otherwise it will skip and continue to the next loop
@@ -114,10 +114,10 @@ class Scene(WindowConfig):
 
             # Empty queue will raise exception. Could also change this flow to check for empty queue before taking to avoid
             # error handling as control flow
-            except: 
+            except:
                 continue                # Otherwise, continue for another loop
 
-                
+
 
     def on_render(self, time:float , frame_time: float) -> None:
         """The rendering pipeline for this program.
@@ -262,12 +262,12 @@ class Scene(WindowConfig):
             scale_delta = self.state_changer.scale_delta
             rotation_delta = self.state_changer.rotation_delta
             translation_delta = self.state_changer.translation_delta
-        
+
         if object.state_changer:
             # Scale in all 3 axes at once
             for i in range(3):
                 object.scale[i] = min(10, max(0.1, object.scale[i] + scale_delta * dt)) # Clip to [0.1, 10]
-            
+
             # Rotation about Y axis only
             object.rotation[1] += rotation_delta * dt
 
