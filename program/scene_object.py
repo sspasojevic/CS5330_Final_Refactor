@@ -16,9 +16,15 @@ class SceneObject:
         self.vao = vao
         self.texture = texture
         self.position = [0.0, 0.0, 0.0] 
+        
         self.scale = [1.0, 1.0, 1.0]
         self.rotation = [0.0, 0.0, 0.0]
         self.editable = editable 
+
+                # For keyboard controls
+        self.scale_speed = 0.5
+        self.rotation_speed = 45 # deg
+        self.translation_speed = 2.0
 
     def get_model_matrix(self) -> Matrix44:
         """Calculates and returns the 4x4 model matrix by computing M = T * R * S

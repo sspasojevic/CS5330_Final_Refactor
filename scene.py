@@ -1,6 +1,7 @@
 import cv2
 import numpy as np
 import moderngl_window as mglw
+import threading
 from pyrr import Matrix44, Vector3  # For matrix math
 from moderngl_window import WindowConfig
 from pathlib import Path
@@ -9,8 +10,7 @@ from program.shader_program import ShaderProgram
 from program.scene_object import SceneObject
 from program.gesture_recognizer import GestureRecognizer
 from program.state_changer import StateChanger
-# from imgui_bundle import imgui
-# from moderngl_window.integrations.imgui_bundle import ModernglWindowRenderer
+
 
 
 # pip install moderngl moderngl-window pywavefront moderngl-window[imgui]
@@ -35,9 +35,25 @@ class Scene(WindowConfig):
         super().__init__(**kwargs)
         self.wnd.ctx.error
         
+        # OpenCV webcam
+        self.cap = cv2.VideoCapture(0)
+
+        # Set up for multi-threading
+        self.frame_ready = False
+        self.current_frame = None
+        self.processed_frame = None
+        self.lock = threading.Lock()
+
+        self.processing_active = True
+        self.processing_thread = threading.Thread(target=self.process_frames, daemon=True) # Daemon ensures the thread ends with the main program.
+        self.processing_thread.start()
+
+        # State changer and gesture recognizer will modify the object parameters
         self.state_changer = StateChanger()
         self.gesture_recognizer = GestureRecognizer(self.state_changer)
 
+
+        
         self.shader_program = ShaderProgram(self.ctx)
         assert Path(self.resource_dir, "shaders/vertex.glsl").exists(), "Vertex shader program not found"
         assert Path(self.resource_dir, "shaders/fragment.glsl").exists(), "Fragment shader program not found"
@@ -51,26 +67,38 @@ class Scene(WindowConfig):
         print(f"Loaded shader program successfully")
 
         # Verify the model and texture exist
-        assert Path(self.resource_dir, "models/crate.obj").exists(), "Bunny obj file not found"
-        assert Path(self.resource_dir, "textures/crate.jpg").exists(), "Bunny texture not found"
+        assert Path(self.resource_dir, "models/crate.obj").exists(), "obj file not found"
+        assert Path(self.resource_dir, "textures/crate.jpg").exists(), "texture not found"
 
         # Load the crate
-        crate_mesh = self.load_scene("models/crate.obj").root_nodes[0].mesh.vao
-        crate_tex = self.load_texture_2d("textures/crate.jpg")
-        self.object = SceneObject(crate_mesh, crate_tex, editable=True)
+        obj_mesh = self.load_scene("models/crate.obj").root_nodes[0].mesh.vao
+        obj_tex = self.load_texture_2d("textures/crate.jpg")
+        self.object = SceneObject(obj_mesh, obj_tex, self.state_changer)
 
         # Load the floor
         floor_mesh = self.load_scene("models/floor.obj").root_nodes[0].mesh.vao
         floor_tex = self.load_texture_2d("textures/tile_floor.jpg")
         self.floor = SceneObject(floor_mesh, floor_tex)
-        self.floor.position = list([0, -0.01, 0])
+        self.floor.position = list([0, -0.01, 0]) # Place the floor just slightly below the object
 
         # Setup orbit camera params
-        self.cam = OrbitCamera(radius=2)
+        self.cam = OrbitCamera(radius=1)
         self.cam_speed = 2.5 # Camera speed when moving
 
-        # OpenCV webcam
-        self.cap = cv2.VideoCapture(0)
+    def process_frames(self):
+        while self.processing_active:
+            ret, frame = self.cap.read()
+            if ret:
+                frame = cv2.flip(frame, 1)
+                cv2.imshow("Webcam", frame)  # display the frame in another window
+                cv2.waitKey(1)
+                # self.lock will ensure thread safety, so it does not access / modify gesture_recognizer while the main thread
+                # is also interacting with the gesture recognizer.
+                with self.lock:
+                    self.gesture_recognizer.process(frame) # Send the frame to the gesture recognizer for processing and state updates
+                    #### Update deltas here unless it's done in process(frame).
+                
+                
 
     def on_render(self, time:float , frame_time: float) -> None:
         """The rendering pipeline for this program.
@@ -80,11 +108,11 @@ class Scene(WindowConfig):
             frame_time (float): The time since the last frame
         """
         # Read a frame from webcam
-        ret, frame = self.cap.read()
-        if ret:
+        # ret, frame = self.cap.read()
+        # if ret:
             
-            self.gesture_recognizer.process(frame)
-            cv2.imshow("Webcam", frame)
+        #     self.gesture_recognizer.process(frame)
+        #     cv2.imshow("Webcam", frame)
 
             # if cv2.waitKey(1) & 0xFF == 27: # ESC key
             #     self.wnd.close()
@@ -140,9 +168,9 @@ class Scene(WindowConfig):
             dt (float): The delta time from the last frame.
         """
         keys = self.wnd.keys
-        speed = 2.0 * dt
-        rot_speed = 45.0 * dt
-        scale_speed = 0.5 * dt
+        speed = object.translation_speed * dt
+        rot_speed = object.rotation_speed * dt
+        scale_speed = object.scale_speed * dt
 
         # Translations
         if self.wnd.is_key_pressed(keys.O): object.position[2] -= speed # Forward
@@ -178,6 +206,7 @@ class Scene(WindowConfig):
             object.position = [0, 0, 0]
             object.rotation = [0, 0, 0]
             object.scale = [1, 1, 1]
+
 
 
     def handle_movement(self, dt: float) -> None:
@@ -218,15 +247,35 @@ class Scene(WindowConfig):
         if self.wnd.is_key_pressed(keys.E):
             self.cam.zoom(zoom_speed)
 
-    def handle_gesture(self, object, frame_time):
-        # Would look something like the key event handler above
-        pass
+    def handle_gesture(self, object: SceneObject, dt: float):
+        # Update by reading the state from state_changer
+        with self.lock:                                     # Lock prevents reading while being updated by the model
+            scale_delta = self.state_changer.scale_delta
+            rotation_delta = self.state_changer.rotation_delta
+            translation_delta = self.state_changer.translation_delta
+        
+        if object.state_changer:
+            # Scale in all 3 axes at once
+            for i in range(3):
+                object.scale[i] = min(10, max(0.1, object.scale[i] + scale_delta * dt)) # Clip to [0.1, 10]
+            
+            # Rotation about Y axis only
+            object.rotation[1] += rotation_delta * dt
+
+            # Translate on X, Y axes only
+            object.position[0] += translation_delta[0] * dt
+            object.position[1] += translation_delta[1] * dt
+
+
+
 
     def destroy(self):
         """Cleans up memory upon shutdown
         """
         # Clean up OpenCV when window closes
-        self.cap.release()
+        self.processing_active = False
+        if self.cap.isOpened():
+            self.cap.release()
         cv2.destroyAllWindows()
 
 
