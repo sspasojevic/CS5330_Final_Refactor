@@ -13,11 +13,15 @@ import torch
 import mediapipe as mp
 import cv2
 import numpy as np
+import threading
+import time
 
 
 class GestureRecognizer:
     def __init__(self, state_changer):
         self.state_changer = state_changer
+        self.last_update = 0        # Keeps track of the time of the most recent update
+        self.lock = threading.Lock() # For state updates
         
         # -------- Gestures and movements ---------
         self.gestures = {0: "grab_move_left", 1: "grab_move_right", 2: "hold_left", 3: "hold_right", 4: "scale_left_hand",
@@ -38,7 +42,7 @@ class GestureRecognizer:
         # -------- Initialize the hands from MediaPipe ---------
         self.hands = mp.solutions.hands.Hands(
             static_image_mode=False,
-            max_num_hands=1,
+            max_num_hands=2,
             min_detection_confidence=0.5,
             min_tracking_confidence=0.5
         )
@@ -159,15 +163,31 @@ class GestureRecognizer:
             correctly classified ones. 
             Example: when rotating, sometimes a hand reads as scale - need to disable switching to scale.
         """
-        
-        self.frame = frame
         # We might need to set up whatever we will memorize in terms of previous frame or previous delta...
         
-        results = self.classify_gesture(self.frame) # Returns dictionary of "gesture_name: 21 landmarks"
+        results = self.classify_gesture(frame) # Returns dictionary of "gesture_name: 21 landmarks"
         
         # Will get first key name if it exists
         gesture_name = next(iter(results), "")
         
-        movement = self.get_movement(gesture_name)
-        print(movement) # Debugging
+        now = time.time()
     
+        if now - self.last_update > 0.5:        # Adds a time buffer to dampen changes in state as the system processes it
+
+            movement = self.get_movement(gesture_name)
+            print(movement) # Debugging
+
+            with self.lock:         # Lock only while the state is being updated
+                if movement == "scale":
+                    self.calculate_scale_delta()
+                elif movement == "move":
+                    self.calculate_translation_delta()
+                elif movement == "rotate":
+                    self.calculate_rotation_delta()
+            
+            self.last_update = now
+
+        else: #### Debugging
+            print(f"Skipped {gesture_name} due to inside buffer time")
+
+
