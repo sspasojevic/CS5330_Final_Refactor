@@ -2,6 +2,7 @@ import cv2
 import numpy as np
 import moderngl_window as mglw
 import threading
+import queue
 from pyrr import Matrix44, Vector3  # For matrix math
 from moderngl_window import WindowConfig
 from pathlib import Path
@@ -10,6 +11,7 @@ from program.shader_program import ShaderProgram
 from program.scene_object import SceneObject
 from program.gesture_recognizer import GestureRecognizer
 from program.state_changer import StateChanger
+import time
 
 
 
@@ -34,24 +36,22 @@ class Scene(WindowConfig):
         """
         super().__init__(**kwargs)
         self.wnd.ctx.error
-        
-        # OpenCV webcam
-        self.cap = cv2.VideoCapture(0)
-
-        # Set up for multi-threading 
-        # self.frame_ready = False
-        # self.current_frame = None
-        # self.processed_frame = None
-
-        self.lock = threading.Lock()
-        self.processing_active = True
-        self.processing_thread = threading.Thread(target=self.process_frames, daemon=True) # Daemon ensures the thread ends with the main program.
-        self.processing_thread.start()
+         
+        self.q = queue.Queue(1) # Create a queue to hold the most recent frame
 
         # State changer and gesture recognizer will modify the object parameters
         self.state_changer = StateChanger()
         self.gesture_recognizer = GestureRecognizer(self.state_changer)
 
+        # Set up for multi-threading 
+        self.lock = threading.Lock()
+
+        self.processing_active = True
+        self.processing_thread = threading.Thread(target=self.process_frames, daemon=True) # Daemon ensures the thread ends with the main program.
+        self.model_thread = threading.Thread(target=self.run_gesture_model, daemon=True)
+
+        self.processing_thread.start()
+        self.model_thread.start()
 
         
         self.shader_program = ShaderProgram(self.ctx)
@@ -86,21 +86,38 @@ class Scene(WindowConfig):
         self.cam_speed = 2.5 # Camera speed when moving
 
     def process_frames(self):
+        # OpenCV webcam
+        self.cap = cv2.VideoCapture(0)
+
         while self.processing_active:
             ret, frame = self.cap.read()
             if ret:
                 frame = cv2.flip(frame, 1)
                 cv2.imshow("Webcam", frame)  # display the frame in another window
                 cv2.waitKey(1)
-                # self.lock will ensure thread safety, so it does not access / modify gesture_recognizer while the main thread
-                # is also interacting with the gesture recognizer.
-                with self.lock:
-                    self.gesture_recognizer.process(frame) # Send the frame to the gesture recognizer for processing and state updates
+
+                if not self.q.full():           # Will only add a frame to the queue if it's empty and ready to be examined by the model
+                    self.q.put(frame.copy())    # Copy will create a standalone frame to save here, rather than passing a reference to the original frame.
+       
+                # time.sleep(0.5)
+
+                # with self.lock:
+                #     self.gesture_recognizer.process(frame) # Send the frame to the gesture recognizer for processing and state updates
 
                 # with self.lock:
                 #     self.state_changer.update()
                     #### Update deltas here unless it's done in process(frame).
                 
+    def run_gesture_model(self):
+        last_update = 0
+
+        while self.processing_active:
+            try:
+                frame = self.q.get()    # optionally, add timeout=1 to give a 1 second delay to wait for a new frame
+            except:
+                continue                # Otherwise, continue for another loop
+
+            self.gesture_recognizer.process(frame)
                 
 
     def on_render(self, time:float , frame_time: float) -> None:

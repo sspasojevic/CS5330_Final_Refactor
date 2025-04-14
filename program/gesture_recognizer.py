@@ -13,12 +13,15 @@ import torch
 import mediapipe as mp
 import cv2
 import numpy as np
-from time import sleep
+import threading
+import time
 
 
 class GestureRecognizer:
     def __init__(self, state_changer):
         self.state_changer = state_changer
+        self.last_update = 0        # Keeps track of the time of the most recent update
+        self.lock = threading.Lock() # For state updates
         
         # -------- Gestures and movements ---------
         self.gestures = {0: "grab_move_left", 1: "grab_move_right", 2: "hold_left", 3: "hold_right", 4: "scale_left_hand",
@@ -160,17 +163,30 @@ class GestureRecognizer:
             correctly classified ones. 
             Example: when rotating, sometimes a hand reads as scale - need to disable switching to scale.
         """
-        
-        self.frame = frame
         # We might need to set up whatever we will memorize in terms of previous frame or previous delta...
         
-        results = self.classify_gesture(self.frame) # Returns dictionary of "gesture_name: 21 landmarks"
+        results = self.classify_gesture(frame) # Returns dictionary of "gesture_name: 21 landmarks"
         
         # Will get first key name if it exists
         gesture_name = next(iter(results), "")
         
-        sleep(0.5)
-
-        movement = self.get_movement(gesture_name)
-        print(movement) # Debugging
+        now = time.time()
     
+        if now - self.last_update > 0.5:        # Adds a tiem buffer to smooth out changes in state as the system processes it
+
+            # sleep(0.5)
+
+            movement = self.get_movement(gesture_name)
+            print(movement) # Debugging
+
+            with self.lock:         # Lock only the state update time
+                if movement == "scale":
+                    self.calculate_scale_delta()
+                elif movement == "move":
+                    self.calculate_translation_delta()
+                elif movement == "rotate":
+                    self.calculate_rotation_delta()
+            
+            self.last_update = now
+
+

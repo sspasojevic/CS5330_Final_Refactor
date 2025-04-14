@@ -19,16 +19,16 @@ class StateChanger:
         
     def update_scale_delta(self, new_delta):
         self.scale_delta = new_delta
-        self.rotation_delta = 40
+        self.rotation_delta = 0
         self.translation_delta = (0, 0)
         
     def update_rotation_delta(self, new_rotation):
-        self.scale_delta = 1
+        self.scale_delta = 0
         self.rotation_delta = new_rotation
         self.translation_delta = (0, 0)
         
     def update_translation_delta(self, x, y):
-        self.scale_delta = 1
+        self.scale_delta = 0
         self.rotation_delta = 0
         self.translation_delta = (x, y)
         
