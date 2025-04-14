@@ -1,7 +1,7 @@
 from pyrr import Matrix44, Vector3
 from moderngl import Context, Program, Texture
 from math import radians
-from state_changer import StateChanger
+from program.state_changer import StateChanger
 
 class SceneObject:
     def __init__(self, vao, texture: Texture, state_changer: StateChanger=None):

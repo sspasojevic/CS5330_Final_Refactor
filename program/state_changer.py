@@ -13,13 +13,13 @@ class StateChanger:
     def __init__(self):
         self.current_state = None
         
-        self.scale_delta = 1 # since I'm assuming this might be a multiplier, we might need to talk through the logic  
+        self.scale_delta = 0 # since I'm assuming this might be a multiplier, we might need to talk through the logic  
         self.rotation_delta = 0 # not sure if this is a multiplier or degree amount, will need to check and talk logic
         self.translation_delta = (0, 0) # tuple, x, y translation respectively (only supporting 2D right now)
         
     def update_scale_delta(self, new_delta):
         self.scale_delta = new_delta
-        self.rotation_delta = 0
+        self.rotation_delta = 40
         self.translation_delta = (0, 0)
         
     def update_rotation_delta(self, new_rotation):

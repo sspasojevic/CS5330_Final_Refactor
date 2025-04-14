@@ -13,6 +13,7 @@ import torch
 import mediapipe as mp
 import cv2
 import numpy as np
+from time import sleep
 
 
 class GestureRecognizer:
@@ -38,7 +39,7 @@ class GestureRecognizer:
         # -------- Initialize the hands from MediaPipe ---------
         self.hands = mp.solutions.hands.Hands(
             static_image_mode=False,
-            max_num_hands=1,
+            max_num_hands=2,
             min_detection_confidence=0.5,
             min_tracking_confidence=0.5
         )
@@ -168,6 +169,8 @@ class GestureRecognizer:
         # Will get first key name if it exists
         gesture_name = next(iter(results), "")
         
+        sleep(0.5)
+
         movement = self.get_movement(gesture_name)
         print(movement) # Debugging
     

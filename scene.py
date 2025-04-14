@@ -97,8 +97,8 @@ class Scene(WindowConfig):
                 with self.lock:
                     self.gesture_recognizer.process(frame) # Send the frame to the gesture recognizer for processing and state updates
 
-                with self.lock:
-                    self.state_changer.update()
+                # with self.lock:
+                #     self.state_changer.update()
                     #### Update deltas here unless it's done in process(frame).
                 
                 
