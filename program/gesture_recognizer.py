@@ -172,14 +172,12 @@ class GestureRecognizer:
         
         now = time.time()
     
-        if now - self.last_update > 0.5:        # Adds a tiem buffer to smooth out changes in state as the system processes it
-
-            # sleep(0.5)
+        if now - self.last_update > 0.5:        # Adds a time buffer to dampen changes in state as the system processes it
 
             movement = self.get_movement(gesture_name)
             print(movement) # Debugging
 
-            with self.lock:         # Lock only the state update time
+            with self.lock:         # Lock only while the state is being updated
                 if movement == "scale":
                     self.calculate_scale_delta()
                 elif movement == "move":
@@ -188,5 +186,8 @@ class GestureRecognizer:
                     self.calculate_rotation_delta()
             
             self.last_update = now
+
+        else: #### Debugging
+            print(f"Skipped {gesture_name} due to inside buffer time")
 
 

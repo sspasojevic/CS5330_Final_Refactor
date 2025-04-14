@@ -98,26 +98,25 @@ class Scene(WindowConfig):
 
                 if not self.q.full():           # Will only add a frame to the queue if it's empty and ready to be examined by the model
                     self.q.put(frame.copy())    # Copy will create a standalone frame to save here, rather than passing a reference to the original frame.
-       
-                # time.sleep(0.5)
 
-                # with self.lock:
-                #     self.gesture_recognizer.process(frame) # Send the frame to the gesture recognizer for processing and state updates
-
-                # with self.lock:
-                #     self.state_changer.update()
-                    #### Update deltas here unless it's done in process(frame).
-                
+                # time.sleep(5) ### Add artificial lag here if desired for testing
+                       
     def run_gesture_model(self):
+        """Tertiary thread that runs the gesture recognizer model. Will try to intake an image from the queue and process it
+        Otherwise it will skip and continue to the next loop
+        """
         last_update = 0
 
         while self.processing_active:
             try:
                 frame = self.q.get()    # optionally, add timeout=1 to give a 1 second delay to wait for a new frame
-            except:
+                self.gesture_recognizer.process(frame)
+
+            # Empty queue will raise exception. Could also change this flow to check for empty queue before taking to avoid
+            # error handling as control flow
+            except: 
                 continue                # Otherwise, continue for another loop
 
-            self.gesture_recognizer.process(frame)
                 
 
     def on_render(self, time:float , frame_time: float) -> None:
@@ -127,16 +126,6 @@ class Scene(WindowConfig):
             time (float): The time of the start of the rendering.
             frame_time (float): The time since the last frame
         """
-        # Read a frame from webcam
-        # ret, frame = self.cap.read()
-        # if ret:
-            
-        #     self.gesture_recognizer.process(frame)
-        #     cv2.imshow("Webcam", frame)
-
-            # if cv2.waitKey(1) & 0xFF == 27: # ESC key
-            #     self.wnd.close()
-
         # Camera event listener.
         # WASD will move camera orbit camera Up/Down/Left/Right
         # Q/E will zoom in/out
