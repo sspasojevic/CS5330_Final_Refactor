@@ -22,7 +22,9 @@ class GestureRecognizer:
     def __init__(self, state_changer):
         self.state_changer = state_changer
         self.last_update = 0        # Keeps track of the time of the most recent update
-        self.last_distance = 0      # Keeps track of the last distance between the index and thumb finger
+        self.last_distance = 0
+        self.last_index_position = 0
+        self.first_index_frame = True
         self.lock = threading.Lock() # For state updates
 
         # -------- Gestures and movements ---------
@@ -138,6 +140,7 @@ class GestureRecognizer:
         distance = math.sqrt((thumb_x - index_x) ** 2 + (thumb_y - index_y) ** 2)
 
         if self.last_distance < 0.5 :
+            time.sleep(1)
             print("First distance")
             print(distance)
             self.last_distance = distance
@@ -150,17 +153,31 @@ class GestureRecognizer:
         self.last_distance = distance
         return delta
 
-    def calculate_rotation_delta(self):
+    def calculate_rotation_delta(self, results, frame, gesture_name):
         """
             Grab the landmarks and calculate the change. Will need to take into account previous position
             of landmarks.
         """
 
-        rotation_delta = 0 # example
+        h, w, _ = frame.shape
 
-        self.state_changer.update_rotation_delta(rotation_delta)
+        index_tip = results[gesture_name].landmark[8]
+        index_x = int(index_tip.x * w)
 
-        pass
+
+        if self.first_index_frame:
+            time.sleep(1)
+            self.first_index_frame = False
+            self.last_index_position = index_x
+            return 0
+
+        distance = index_x - self.last_index_position
+        delta = (distance - self.last_distance)
+        # round to nearest integer
+        delta = round(delta)
+
+        self.last_distance = distance
+        return delta
 
     def calculate_translation_delta(self):
         """
@@ -193,53 +210,60 @@ class GestureRecognizer:
 
         now = time.time()
 
-        # if now - self.last_update > 0.5:        # Adds a time buffer to dampen changes in state as the system processes it
+        if now - self.last_update > 0.5:        # Adds a time buffer to dampen changes in state as the system processes it
 
-        #     movement = self.get_movement(gesture_name)
-        #     print(movement) # Debugging
+            movement = self.get_movement(gesture_name)
+            # print(movement) # Debugging
 
-        #     with self.lock:         # Lock only while the state is being updated
-        #         if movement == "scale":
-        #             self.calculate_scale_delta()
-        #         elif movement == "move":
-        #             self.calculate_translation_delta()
-        #         elif movement == "rotate":
-        #             self.calculate_rotation_delta()
+            with self.lock:         # Lock only while the state is being updated
+                if movement == "scale":
+                    delta = self.calculate_scale_delta(results, frame, gesture_name)
+                    if abs(delta) >= 3.5:
+                        self.state_changer.update_scale_delta(delta)
+                        print(self.state_changer.scale_delta)
+                    else:
+                        self.state_changer.reset()
+                        # time.sleep(1)
+                elif movement == "move":
+                    self.calculate_translation_delta()
+                elif movement == "rotate_Y_counterclockwise":
+                    delta = self.calculate_rotation_delta(results, frame, gesture_name)
+                    if abs(delta) >= 3:
+                        self.state_changer.update_rotation_delta(delta)
+                        print(self.state_changer.rotation_delta)
+                    else:
+                        self.state_changer.reset()
+                    # self.calculate_rotation_delta()
+                else:
+                    self.last_distance = 0
+                    self.state_changer.reset()
 
-        #     self.last_update = now
-
-        # else: #### Debugging
-        #     print(f"Skipped {gesture_name} due to inside buffer time")
+        else: #### Debugging
+            print(f"Skipped {gesture_name} due to inside buffer time")
 
 
 
-        movement = self.get_movement(gesture_name)
+        # movement = self.get_movement(gesture_name)
         # print(movement) # Debugging
 
-        # with self.lock:         # Lock only while the state is being updated
-        #     if movement == "scale":
 
-        #         print("Scale detected", results[gesture_name])
-        #         self.calculate_scale_delta()
-        #     elif movement == "move":
-        #         self.calculate_translation_delta()
-        #     elif movement == "rotate":
-        #         self.calculate_rotation_delta()
-
-        # self.last_update = now
-
-
-
-        if movement == "scale":
-            delta = self.calculate_scale_delta(results, frame, gesture_name)
-            if abs(delta) >= 3:
-                self.state_changer.update_scale_delta(delta)
-                print(self.state_changer.scale_delta)
-            else:
-                self.state_changer.reset()
-        elif movement == "move":
-            self.calculate_translation_delta()
-        elif movement == "rotate":
-            self.calculate_rotation_delta()
-        else:
-            self.state_changer.reset()
+        # if movement == "scale":
+        #     delta = self.calculate_scale_delta(results, frame, gesture_name)
+        #     if abs(delta) >= 3:
+        #         self.state_changer.update_scale_delta(delta)
+        #         print(self.state_changer.scale_delta)
+        #     else:
+        #         self.state_changer.reset()
+        # elif movement == "move":
+        #     self.calculate_translation_delta()
+        # elif movement == "rotate_Y_clockwise":
+        #     delta = self.calculate_rotation_delta(results, frame, gesture_name)
+        #     if abs(delta) >= 3:
+        #         self.state_changer.update_rotation_delta(delta)
+        #         print(self.state_changer.rotation_delta)
+        #     else:
+        #         self.state_changer.reset()
+        #     # self.calculate_rotation_delta()
+        # else:
+        #     self.last_distance = 0
+        #     self.state_changer.reset()
