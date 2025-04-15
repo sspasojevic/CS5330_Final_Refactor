@@ -268,14 +268,13 @@ class Scene(WindowConfig):
             for i in range(3):
                 target_scale = object.scale[i] + scale_delta * dt
                 object.scale[i] = min(10, max(0.1, object.scale[i] * (1 - 0.1) + target_scale * 0.1))
-                print(object.state_changer.scale_delta)
 
             # Rotation about Y axis only
-            object.rotation[1] += rotation_delta * dt
+            object.rotation[1] += rotation_delta * dt * 2
 
             # Translate on X, Y axes only
-            object.position[0] += translation_delta[0] * dt
-            object.position[1] += translation_delta[1] * dt
+            object.position[2] += translation_delta[0] * dt / 100
+            object.position[1] += translation_delta[1] * dt / 100
 
 
 

@@ -23,6 +23,8 @@ class GestureRecognizer:
         self.state_changer = state_changer
         self.last_update = 0        # Keeps track of the time of the most recent update
         self.last_distance = 0
+        self.last_x = 0
+        self.last_y = 0
         self.last_index_position = 0
         self.first_index_frame = True
         self.lock = threading.Lock() # For state updates
@@ -166,31 +168,53 @@ class GestureRecognizer:
 
 
         if self.first_index_frame:
-            time.sleep(1)
             self.first_index_frame = False
             self.last_index_position = index_x
             return 0
 
         distance = index_x - self.last_index_position
         delta = (distance - self.last_distance)
+        
         # round to nearest integer
-        delta = round(delta)
+        # delta = round(delta)
+        
+        if delta >= 0 and gesture_name == "swipe_left_hand":
+            self.last_index_position = 0
+            self.first_index_frame = True
+            return 0
+        elif delta <= 0 and gesture_name == "swipe_right_hand":
+            self.last_index_position = 0
+            self.first_index_frame = True
+            return 0
 
         self.last_distance = distance
         return delta
 
-    def calculate_translation_delta(self):
+    def calculate_translation_delta(self, results, frame, gesture_name):
         """
             Grab the landmarks and calculate the change. Will need to take into account previous position
             of landmarks.
         """
 
-        x_delta = 0 # example
-        y_delta = 0 # example
+        h, w, _ = frame.shape
 
-        self.state_changer.update_translation_delta(x_delta, y_delta)
+        fist_center = results[gesture_name].landmark[9]
 
-        pass
+        fist_center_x, fist_center_y = int(fist_center.x * w), int(fist_center.y * h)
+
+        if self.first_index_frame:
+            self.first_index_frame = False
+            self.last_x = fist_center_x
+            self.last_y = fist_center_y
+            return 0
+
+        delta_x = (self.last_x - fist_center_x)
+        delta_y = (self.last_y - fist_center_y)
+        # round to nearest integer
+        # delta = round(delta)
+
+        # self.last_distance = distance
+        return delta_x, delta_y
 
     def process(self, frame):
         """
@@ -223,17 +247,32 @@ class GestureRecognizer:
                         print(self.state_changer.scale_delta)
                     else:
                         self.state_changer.reset()
-                        # time.sleep(1)
                 elif movement == "move":
-                    self.calculate_translation_delta()
+                    x_delta, y_delta = self.calculate_translation_delta(results, frame, gesture_name)
+                    
+                    if abs(x_delta) >= 3 and abs(y_delta) >= 3:
+                        self.state_changer.update_translation_delta(x_delta, y_delta)
+                        # print(self.state_changer.rotation_delta)
+                    else:
+                        self.last_distance = 0
+                        self.state_changer.reset()
+                    
                 elif movement == "rotate_Y_counterclockwise":
                     delta = self.calculate_rotation_delta(results, frame, gesture_name)
+                     
                     if abs(delta) >= 3:
                         self.state_changer.update_rotation_delta(delta)
-                        print(self.state_changer.rotation_delta)
                     else:
+                        self.last_distance = 0
                         self.state_changer.reset()
-                    # self.calculate_rotation_delta()
+                elif movement == "rotate_Y_clockwise":
+                    delta = self.calculate_rotation_delta(results, frame, gesture_name)
+                     
+                    if abs(delta) >= 3:
+                        self.state_changer.update_rotation_delta(delta)
+                    else:
+                        self.last_distance = 0
+                        self.state_changer.reset()
                 else:
                     self.last_distance = 0
                     self.state_changer.reset()
