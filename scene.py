@@ -273,8 +273,8 @@ class Scene(WindowConfig):
             object.rotation[1] += rotation_delta * dt * 2
 
             # Translate on X, Y axes only
-            object.position[2] += translation_delta[0] * dt / 100
-            object.position[1] += translation_delta[1] * dt / 100
+            object.position[2] += translation_delta[0] * dt / 10
+            object.position[1] += translation_delta[1] * dt / 10
 
 
 
