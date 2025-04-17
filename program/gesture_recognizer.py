@@ -16,12 +16,12 @@ import numpy as np
 import threading
 import time
 import math
-
+import random
 
 class GestureRecognizer:
     def __init__(self, state_changer):
         self.state_changer = state_changer
-        self.last_update = 0        # Keeps track of the time of the most recent update
+        self.last_update = 0
         self.last_distance_scale = 0
         self.last_distance_rotation = 0
         self.last_x = 0
@@ -29,7 +29,17 @@ class GestureRecognizer:
         self.last_index_position = 0
         self.first_index_frame = True
         self.first_index_frame_move = True
-        self.lock = threading.Lock() # For state updates
+        
+        # Add gesture history tracking
+        self.gesture_history_size = 10  # Size of the gesture history queue
+        self.gesture_history = []  # Queue of recent gesture classifications
+        
+        # Thresholds for gesture switching
+        self.consecutive_threshold = 4  # Required consecutive detections to switch
+        self.majority_threshold = 0.6  # Required proportion for majority (60%)
+        
+        # Current state tracking
+        self.current_gesture = ""
 
         # -------- Gestures and movements ---------
         self.gestures = {0: "grab_move_left", 1: "grab_move_right", 2: "hold_left", 3: "hold_right", 4: "scale_left_hand",
@@ -55,7 +65,7 @@ class GestureRecognizer:
             min_tracking_confidence=0.5
         )
         self.mp_drawing = mp.solutions.drawing_utils
-
+        
     def classify_gesture(self, frame):
         """
             Takes a frame, finds a hand, classifies the gesture, draws it on screen, returns gesture name and landmarks.
@@ -116,15 +126,7 @@ class GestureRecognizer:
             movement = "no_movement"
 
         return movement
-
-    def check_is_move_active(self):
-        """
-            We need to check if we "held" the grab hand for 1 second before we enable moving.
-            This is up for discussion on how to implement.
-        """
-
-        pass
-
+    
     def calculate_scale_delta(self, results, frame, gesture_name):
         """
             Grab the landmarks and calculate the change. Will need to take into account previous position
@@ -144,7 +146,6 @@ class GestureRecognizer:
         distance = math.sqrt((thumb_x - index_x) ** 2 + (thumb_y - index_y) ** 2)
 
         if self.last_distance_scale < 0.5 :
-            time.sleep(1)
             print("First distance")
             print(distance)
             self.last_distance_scale = distance
@@ -205,7 +206,6 @@ class GestureRecognizer:
         fist_center_x, fist_center_y = int(fist_center.x * w), int(fist_center.y * h)
 
         if self.first_index_frame_move:
-            time.sleep(1)
             print("First move")
             self.first_index_frame_move = False
             self.last_x = fist_center_x
@@ -221,7 +221,24 @@ class GestureRecognizer:
 
         # self.last_distance = distance
         return delta_x, delta_y
-
+    
+    def get_consecutive_count(self, queue):
+        """Count consecutive occurrences of the last element in the queue"""
+        if not queue:
+            return 0
+        
+        last_item = queue[-1]
+        count = 0
+        
+        # Count backwards from the end
+        for i in range(len(queue) - 1, -1, -1):
+            if queue[i] == last_item:
+                count += 1
+            else:
+                break
+                
+        return count
+    
     def process(self, frame):
         """
             Function that will run the entire logic and call the above function.
@@ -237,10 +254,26 @@ class GestureRecognizer:
 
         # Will get first key name if it exists
         gesture_name = next(iter(results), "")
+        
+        self.gesture_history.append(gesture_name)
+        
+        if len(self.gesture_history) > self.gesture_history_size:
+            self.gesture_history.pop(0)
+        
+        # Check for consecutive identical gestures at the end of the queue
+        consecutive_gesture = self.get_consecutive_count(self.gesture_history)
+        
+        if gesture_name == "hold_left" or gesture_name == "hold_right":
+            movement = "no movement"
 
-       # Adds a time buffer to dampen changes in state as the system processes it
+        elif self.current_gesture == "" and gesture_name != "":
+            if consecutive_gesture >= self.consecutive_threshold:
+                movement = self.get_movement(gesture_name)
 
-        movement = self.get_movement(gesture_name)
+        elif self.current_gesture != "":
+            if self.current_gesture != gesture_name and consecutive_gesture >= self.consecutive_threshold:
+                movement = self.get_movement(gesture_name)
+        
         print(f"Move name: {movement}, Scale delta: {self.state_changer.scale_delta}; Translation delta: {self.state_changer.translation_delta}; Rotation delta: {self.state_changer.rotation_delta}")
 
         # with self.lock:         # Lock only while the state is being updated
@@ -257,7 +290,6 @@ class GestureRecognizer:
                 self.first_index_frame = True
                 self.state_changer.reset()
         elif movement == "move":
-            self.state_changer.scale_delta = 0
             x_delta, y_delta = self.calculate_translation_delta(results, frame, gesture_name)
             
             if abs(x_delta) >= 3 and abs(y_delta) >= 3:
@@ -270,7 +302,6 @@ class GestureRecognizer:
                 self.state_changer.reset()
             
         elif movement == "rotate_Y_counterclockwise":
-            self.state_changer.scale_delta = 0
             delta = self.calculate_rotation_delta(results, frame, gesture_name)
                 
             if abs(delta) >= 3:
@@ -283,7 +314,6 @@ class GestureRecognizer:
                 self.first_index_frame_move = True
                 self.state_changer.reset()
         elif movement == "rotate_Y_clockwise":
-            self.state_changer.scale_delta = 0
             delta = self.calculate_rotation_delta(results, frame, gesture_name)
                 
             if abs(delta) >= 3:
@@ -305,30 +335,3 @@ class GestureRecognizer:
             self.first_index_frame_move = True
             self.state_changer.reset()
             print(f"Move name: {movement}, Scale delta: {self.state_changer.scale_delta}; Translation delta: {self.state_changer.translation_delta}; Rotation delta: {self.state_changer.rotation_delta}")
-
-
-
-        # movement = self.get_movement(gesture_name)
-        # print(movement) # Debugging
-
-
-        # if movement == "scale":
-        #     delta = self.calculate_scale_delta(results, frame, gesture_name)
-        #     if abs(delta) >= 3:
-        #         self.state_changer.update_scale_delta(delta)
-        #         print(self.state_changer.scale_delta)
-        #     else:
-        #         self.state_changer.reset()
-        # elif movement == "move":
-        #     self.calculate_translation_delta()
-        # elif movement == "rotate_Y_clockwise":
-        #     delta = self.calculate_rotation_delta(results, frame, gesture_name)
-        #     if abs(delta) >= 3:
-        #         self.state_changer.update_rotation_delta(delta)
-        #         print(self.state_changer.rotation_delta)
-        #     else:
-        #         self.state_changer.reset()
-        #     # self.calculate_rotation_delta()
-        # else:
-        #     self.last_distance = 0
-        #     self.state_changer.reset()
