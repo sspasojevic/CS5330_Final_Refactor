@@ -28,6 +28,7 @@ class GestureRecognizer:
         self.last_y = 0
         self.last_index_position = 0
         self.first_index_frame = True
+        self.first_index_frame_move = True
         self.lock = threading.Lock() # For state updates
 
         # -------- Gestures and movements ---------
@@ -203,9 +204,10 @@ class GestureRecognizer:
 
         fist_center_x, fist_center_y = int(fist_center.x * w), int(fist_center.y * h)
 
-        if self.first_index_frame:
+        if self.first_index_frame_move:
             time.sleep(1)
-            self.first_index_frame = False
+            print("First move")
+            self.first_index_frame_move = False
             self.last_x = fist_center_x
             self.last_y = fist_center_y
             return 0
@@ -253,6 +255,8 @@ class GestureRecognizer:
                     self.last_x = 0
                     self.last_y = 0
                     self.last_index_position = 0
+                    self.first_index_frame_move = True
+                    self.first_index_frame = True
                     self.state_changer.reset()
             elif movement == "move":
                 x_delta, y_delta = self.calculate_translation_delta(results, frame, gesture_name)
@@ -263,6 +267,7 @@ class GestureRecognizer:
                     self.last_distance_scale = 0
                     self.last_distance_rotation = 0
                     self.last_index_position = 0
+                    self.first_index_frame = True
                     self.state_changer.reset()
                 
             elif movement == "rotate_Y_counterclockwise":
@@ -275,6 +280,7 @@ class GestureRecognizer:
                     self.last_distance_rotation = 0
                     self.last_x = 0
                     self.last_y = 0
+                    self.first_index_frame_move = True
                     self.state_changer.reset()
             elif movement == "rotate_Y_clockwise":
                 delta = self.calculate_rotation_delta(results, frame, gesture_name)
@@ -286,6 +292,7 @@ class GestureRecognizer:
                     self.last_distance_rotation = 0
                     self.last_x = 0
                     self.last_y = 0
+                    self.first_index_frame_move = True
                     self.state_changer.reset()
             else:
                 self.last_distance_scale = 0
@@ -294,6 +301,7 @@ class GestureRecognizer:
                 self.last_y = 0
                 self.last_index_position = 0
                 self.first_index_frame = True
+                self.first_index_frame_move = True
                 self.state_changer.reset()
                 print(f"Move name: {movement}, Scale delta: {self.state_changer.scale_delta}; Translation delta: {self.state_changer.translation_delta}; Rotation delta: {self.state_changer.rotation_delta}")
                 
