@@ -259,6 +259,7 @@ class GestureRecognizer:
                     self.first_index_frame = True
                     self.state_changer.reset()
             elif movement == "move":
+                self.state_changer.scale_delta = 0
                 x_delta, y_delta = self.calculate_translation_delta(results, frame, gesture_name)
                 
                 if abs(x_delta) >= 3 and abs(y_delta) >= 3:
