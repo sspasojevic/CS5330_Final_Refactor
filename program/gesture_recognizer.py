@@ -238,77 +238,73 @@ class GestureRecognizer:
         # Will get first key name if it exists
         gesture_name = next(iter(results), "")
 
-        now = time.time()
+       # Adds a time buffer to dampen changes in state as the system processes it
 
-        if now - self.last_update > 0.5:        # Adds a time buffer to dampen changes in state as the system processes it
+        movement = self.get_movement(gesture_name)
+        print(f"Move name: {movement}, Scale delta: {self.state_changer.scale_delta}; Translation delta: {self.state_changer.translation_delta}; Rotation delta: {self.state_changer.rotation_delta}")
 
-            movement = self.get_movement(gesture_name)
-            print(f"Move name: {movement}, Scale delta: {self.state_changer.scale_delta}; Translation delta: {self.state_changer.translation_delta}; Rotation delta: {self.state_changer.rotation_delta}")
-
-            # with self.lock:         # Lock only while the state is being updated
-            if movement == "scale":
-                delta = self.calculate_scale_delta(results, frame, gesture_name)
-                if abs(delta) >= 3.5:
-                    self.state_changer.update_scale_delta(delta)
-                else:
-                    self.last_distance_rotation = 0
-                    self.last_x = 0
-                    self.last_y = 0
-                    self.last_index_position = 0
-                    self.first_index_frame_move = True
-                    self.first_index_frame = True
-                    self.state_changer.reset()
-            elif movement == "move":
-                self.state_changer.scale_delta = 0
-                x_delta, y_delta = self.calculate_translation_delta(results, frame, gesture_name)
+        # with self.lock:         # Lock only while the state is being updated
+        if movement == "scale":
+            delta = self.calculate_scale_delta(results, frame, gesture_name)
+            if abs(delta) >= 3.5:
+                self.state_changer.update_scale_delta(delta)
+            else:
+                self.last_distance_rotation = 0
+                self.last_x = 0
+                self.last_y = 0
+                self.last_index_position = 0
+                self.first_index_frame_move = True
+                self.first_index_frame = True
+                self.state_changer.reset()
+        elif movement == "move":
+            self.state_changer.scale_delta = 0
+            x_delta, y_delta = self.calculate_translation_delta(results, frame, gesture_name)
+            
+            if abs(x_delta) >= 3 and abs(y_delta) >= 3:
+                self.state_changer.update_translation_delta(x_delta, y_delta)
+            else:
+                self.last_distance_scale = 0
+                self.last_distance_rotation = 0
+                self.last_index_position = 0
+                self.first_index_frame = True
+                self.state_changer.reset()
+            
+        elif movement == "rotate_Y_counterclockwise":
+            self.state_changer.scale_delta = 0
+            delta = self.calculate_rotation_delta(results, frame, gesture_name)
                 
-                if abs(x_delta) >= 3 and abs(y_delta) >= 3:
-                    self.state_changer.update_translation_delta(x_delta, y_delta)
-                else:
-                    self.last_distance_scale = 0
-                    self.last_distance_rotation = 0
-                    self.last_index_position = 0
-                    self.first_index_frame = True
-                    self.state_changer.reset()
-                
-            elif movement == "rotate_Y_counterclockwise":
-                delta = self.calculate_rotation_delta(results, frame, gesture_name)
-                    
-                if abs(delta) >= 3:
-                    self.state_changer.update_rotation_delta(delta)
-                else:
-                    self.last_distance_scale = 0
-                    self.last_distance_rotation = 0
-                    self.last_x = 0
-                    self.last_y = 0
-                    self.first_index_frame_move = True
-                    self.state_changer.reset()
-            elif movement == "rotate_Y_clockwise":
-                delta = self.calculate_rotation_delta(results, frame, gesture_name)
-                    
-                if abs(delta) >= 3:
-                    self.state_changer.update_rotation_delta(delta)
-                else:
-                    self.last_distance_scale = 0
-                    self.last_distance_rotation = 0
-                    self.last_x = 0
-                    self.last_y = 0
-                    self.first_index_frame_move = True
-                    self.state_changer.reset()
+            if abs(delta) >= 3:
+                self.state_changer.update_rotation_delta(delta)
             else:
                 self.last_distance_scale = 0
                 self.last_distance_rotation = 0
                 self.last_x = 0
                 self.last_y = 0
-                self.last_index_position = 0
-                self.first_index_frame = True
                 self.first_index_frame_move = True
                 self.state_changer.reset()
-                print(f"Move name: {movement}, Scale delta: {self.state_changer.scale_delta}; Translation delta: {self.state_changer.translation_delta}; Rotation delta: {self.state_changer.rotation_delta}")
+        elif movement == "rotate_Y_clockwise":
+            self.state_changer.scale_delta = 0
+            delta = self.calculate_rotation_delta(results, frame, gesture_name)
                 
-
-        else: #### Debugging
-            print(f"Skipped {gesture_name} due to inside buffer time")
+            if abs(delta) >= 3:
+                self.state_changer.update_rotation_delta(delta)
+            else:
+                self.last_distance_scale = 0
+                self.last_distance_rotation = 0
+                self.last_x = 0
+                self.last_y = 0
+                self.first_index_frame_move = True
+                self.state_changer.reset()
+        else:
+            self.last_distance_scale = 0
+            self.last_distance_rotation = 0
+            self.last_x = 0
+            self.last_y = 0
+            self.last_index_position = 0
+            self.first_index_frame = True
+            self.first_index_frame_move = True
+            self.state_changer.reset()
+            print(f"Move name: {movement}, Scale delta: {self.state_changer.scale_delta}; Translation delta: {self.state_changer.translation_delta}; Rotation delta: {self.state_changer.rotation_delta}")
 
 
 
