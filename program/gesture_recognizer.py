@@ -133,8 +133,6 @@ class GestureRecognizer:
             of landmarks.
         """
 
-        # bla bla bla here
-
         h, w, _ = frame.shape
 
         index_tip = results[gesture_name].landmark[8]
@@ -146,13 +144,10 @@ class GestureRecognizer:
         distance = math.sqrt((thumb_x - index_x) ** 2 + (thumb_y - index_y) ** 2)
 
         if self.last_distance_scale < 0.5 :
-            print("First distance")
-            print(distance)
             self.last_distance_scale = distance
             return 0
 
         delta = (distance - self.last_distance_scale)
-        # round to nearest integer
         delta = round(delta)
 
         self.last_distance_scale = distance
@@ -177,9 +172,6 @@ class GestureRecognizer:
         
         distance = index_x - self.last_index_position
         delta = (distance - self.last_distance_rotation)
-        
-        # round to nearest integer
-        # delta = round(delta)
         
         if delta >= 0 and gesture_name == "swipe_left_hand":
             self.last_index_position = 0
@@ -206,7 +198,6 @@ class GestureRecognizer:
         fist_center_x, fist_center_y = int(fist_center.x * w), int(fist_center.y * h)
 
         if self.first_index_frame_move:
-            print("First move")
             self.first_index_frame_move = False
             self.last_x = fist_center_x
             self.last_y = fist_center_y
@@ -216,10 +207,7 @@ class GestureRecognizer:
         delta_y = (self.last_y - fist_center_y)
         self.last_x = fist_center_x
         self.last_y = fist_center_y
-        # round to nearest integer
-        # delta = round(delta)
 
-        # self.last_distance = distance
         return delta_x, delta_y
     
     def get_consecutive_count(self, queue):
@@ -248,7 +236,6 @@ class GestureRecognizer:
             correctly classified ones.
             Example: when rotating, sometimes a hand reads as scale - need to disable switching to scale.
         """
-        # We might need to set up whatever we will memorize in terms of previous frame or previous delta...
 
         results = self.classify_gesture(frame) # Returns dictionary of "gesture_name: 21 landmarks"
 
