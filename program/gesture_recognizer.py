@@ -227,6 +227,21 @@ class GestureRecognizer:
                 
         return count
     
+    def reset_variables(self, resets = ["none"]):
+        
+        if "scale" in resets:
+            self.last_distance_scale = 0
+        if "move" in resets:
+            self.last_x = 0
+            self.last_y = 0
+            self.first_index_frame_move = True
+        if "rotate" in resets:
+            self.last_distance_rotation = 0
+            self.last_index_position = 0
+            self.first_index_frame = True
+            
+        self.state_changer.reset()
+    
     def process(self, frame):
         """
             Function that will run the entire logic and call the above function.
@@ -268,24 +283,15 @@ class GestureRecognizer:
             if abs(delta) >= 3.5:
                 self.state_changer.update_scale_delta(delta)
             else:
-                self.last_distance_rotation = 0
-                self.last_x = 0
-                self.last_y = 0
-                self.last_index_position = 0
-                self.first_index_frame_move = True
-                self.first_index_frame = True
-                self.state_changer.reset()
+                self.reset_variables(["move", "rotate"])
+                
         elif movement == "move":
             x_delta, y_delta = self.calculate_translation_delta(results, frame, gesture_name)
             
             if abs(x_delta) >= 3 and abs(y_delta) >= 3:
                 self.state_changer.update_translation_delta(x_delta, y_delta)
             else:
-                self.last_distance_scale = 0
-                self.last_distance_rotation = 0
-                self.last_index_position = 0
-                self.first_index_frame = True
-                self.state_changer.reset()
+                self.reset_variables(["scale", "rotate"])
             
         elif movement == "rotate_Y_counterclockwise":
             delta = self.calculate_rotation_delta(results, frame, gesture_name)
@@ -293,30 +299,16 @@ class GestureRecognizer:
             if abs(delta) >= 3:
                 self.state_changer.update_rotation_delta(delta)
             else:
-                self.last_distance_scale = 0
+                self.reset_variables(["scale", "move"])    
                 self.last_distance_rotation = 0
-                self.last_x = 0
-                self.last_y = 0
-                self.first_index_frame_move = True
-                self.state_changer.reset()
+
         elif movement == "rotate_Y_clockwise":
             delta = self.calculate_rotation_delta(results, frame, gesture_name)
                 
             if abs(delta) >= 3:
                 self.state_changer.update_rotation_delta(delta)
             else:
-                self.last_distance_scale = 0
+                self.reset_variables(["scale", "move"])    
                 self.last_distance_rotation = 0
-                self.last_x = 0
-                self.last_y = 0
-                self.first_index_frame_move = True
-                self.state_changer.reset()
         else:
-            self.last_distance_scale = 0
-            self.last_distance_rotation = 0
-            self.last_x = 0
-            self.last_y = 0
-            self.last_index_position = 0
-            self.first_index_frame = True
-            self.first_index_frame_move = True
-            self.state_changer.reset()
+            self.reset_variables(["scale", "move", "rotate"])  
