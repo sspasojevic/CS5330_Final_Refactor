@@ -112,14 +112,14 @@ class Scene(WindowConfig):
             try:
                 frame = self.q.get()    # optionally, add timeout=1 to give a 1 second delay to wait for a new frame
                 self.gesture_recognizer.process(frame)
-                self.frame = frame
+                self.frame = cv2.flip(frame, 1)
 
             # Empty queue will raise exception. Could also change this flow to check for empty queue before taking to avoid
             # error handling as control flow
             except:
                 ret, frame = self.cap.read()
                 if ret:
-                    self.frame = frame
+                    self.frame = cv2.flip(frame, 1)
                 continue                # Otherwise, continue for another loop
 
     def on_render(self, time:float , frame_time: float) -> None:

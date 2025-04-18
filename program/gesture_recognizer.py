@@ -274,9 +274,8 @@ class GestureRecognizer:
             if self.current_gesture != gesture_name and consecutive_gesture >= self.consecutive_threshold:
                 movement = self.get_movement(gesture_name)
         
-        print(f"Move name: {movement}, Scale delta: {self.state_changer.scale_delta}; Translation delta: {self.state_changer.translation_delta}; Rotation delta: {self.state_changer.rotation_delta}")
+        # print(f"Move name: {movement}, Scale delta: {self.state_changer.scale_delta}; Translation delta: {self.state_changer.translation_delta}; Rotation delta: {self.state_changer.rotation_delta}")
 
-        # with self.lock:         # Lock only while the state is being updated
         if movement == "scale":
             delta = self.calculate_scale_delta(results, frame, gesture_name)
             if abs(delta) >= 3.5:
@@ -334,4 +333,3 @@ class GestureRecognizer:
             self.first_index_frame = True
             self.first_index_frame_move = True
             self.state_changer.reset()
-            print(f"Move name: {movement}, Scale delta: {self.state_changer.scale_delta}; Translation delta: {self.state_changer.translation_delta}; Rotation delta: {self.state_changer.rotation_delta}")
