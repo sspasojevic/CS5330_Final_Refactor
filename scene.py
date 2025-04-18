@@ -38,6 +38,8 @@ class Scene(WindowConfig):
         self.wnd.ctx.error
 
         self.q = queue.Queue(1) # Create a queue to hold the most recent frame
+        
+        self.frame = None
 
         # State changer and gesture recognizer will modify the object parameters
         self.state_changer = StateChanger()
@@ -94,7 +96,6 @@ class Scene(WindowConfig):
             if ret:
                 # frame = cv2.flip(frame, 1)
                 # cv2.imshow("Webcam", frame)  # display the frame in another window
-                cv2.waitKey(1)
 
                 if not self.q.full():           # Will only add a frame to the queue if it's empty and ready to be examined by the model
                     self.q.put(frame.copy())    # Copy will create a standalone frame to save here, rather than passing a reference to the original frame.
@@ -111,13 +112,15 @@ class Scene(WindowConfig):
             try:
                 frame = self.q.get()    # optionally, add timeout=1 to give a 1 second delay to wait for a new frame
                 self.gesture_recognizer.process(frame)
+                self.frame = frame
 
             # Empty queue will raise exception. Could also change this flow to check for empty queue before taking to avoid
             # error handling as control flow
             except:
+                ret, frame = self.cap.read()
+                if ret:
+                    self.frame = frame
                 continue                # Otherwise, continue for another loop
-
-
 
     def on_render(self, time:float , frame_time: float) -> None:
         """The rendering pipeline for this program.
@@ -126,6 +129,10 @@ class Scene(WindowConfig):
             time (float): The time of the start of the rendering.
             frame_time (float): The time since the last frame
         """
+        
+        if self.frame is not None:
+            cv2.imshow("Webcam", self.frame)
+        
         # Camera event listener.
         # WASD will move camera orbit camera Up/Down/Left/Right
         # Q/E will zoom in/out
