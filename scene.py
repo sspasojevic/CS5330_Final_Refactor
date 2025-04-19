@@ -96,6 +96,7 @@ class Scene(WindowConfig):
             if ret:
                 # frame = cv2.flip(frame, 1)
                 # cv2.imshow("Webcam", frame)  # display the frame in another window
+                self.frame = frame
 
                 if not self.q.full():           # Will only add a frame to the queue if it's empty and ready to be examined by the model
                     self.q.put(frame.copy())    # Copy will create a standalone frame to save here, rather than passing a reference to the original frame.
@@ -112,14 +113,10 @@ class Scene(WindowConfig):
             try:
                 frame = self.q.get()    # optionally, add timeout=1 to give a 1 second delay to wait for a new frame
                 self.gesture_recognizer.process(frame)
-                self.frame = cv2.flip(frame, 1)
 
             # Empty queue will raise exception. Could also change this flow to check for empty queue before taking to avoid
             # error handling as control flow
             except:
-                ret, frame = self.cap.read()
-                if ret:
-                    self.frame = cv2.flip(frame, 1)
                 continue                # Otherwise, continue for another loop
 
     def on_render(self, time:float , frame_time: float) -> None:
