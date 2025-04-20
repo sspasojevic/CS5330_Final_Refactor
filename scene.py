@@ -24,7 +24,7 @@ class Scene(WindowConfig):
     window_size = (1024, 768)
     gl_version = (3, 3)
     resource_dir = (Path(__file__).parent / 'utilities' / 'render_data').resolve()
-    sampels = 4 # multi-sampling
+    samples = 4 # multi-sampling
     resizable = False
     vsync = True
 
@@ -46,15 +46,15 @@ class Scene(WindowConfig):
 
         # Set up for multi-threading
         self.lock = threading.Lock()
-
         self.processing_active = True
         self.processing_thread = threading.Thread(target=self.process_frames, daemon=True) # Daemon ensures the thread ends with the main program.
         self.model_thread = threading.Thread(target=self.run_gesture_model, daemon=True)
 
+        # Launch the threads
         self.processing_thread.start()
         self.model_thread.start()
 
-
+        # Set up the scene vertex shaders
         self.shader_program = ShaderProgram(self.ctx)
         assert Path(self.resource_dir, "shaders/vertex.glsl").exists(), "Vertex shader program not found"
         assert Path(self.resource_dir, "shaders/fragment.glsl").exists(), "Fragment shader program not found"
@@ -64,47 +64,45 @@ class Scene(WindowConfig):
             vertex_path=self.resource_dir / 'shaders' / 'vertex.glsl',
             fragment_path=self.resource_dir / 'shaders' / 'fragment.glsl'
         )
-
         print(f"Loaded shader program successfully")
 
-        # Verify the model and texture exist
+        # Load the scene
         assert Path(self.resource_dir, "models/crate.obj").exists(), "obj file not found"
         assert Path(self.resource_dir, "textures/crate.jpg").exists(), "texture not found"
 
-        # Load the crate
         obj_mesh = self.load_scene("models/crate.obj").root_nodes[0].mesh.vao
         obj_tex = self.load_texture_2d("textures/crate.jpg")
         self.object = SceneObject(obj_mesh, obj_tex, self.state_changer)
 
-        # Load the floor
         floor_mesh = self.load_scene("models/floor.obj").root_nodes[0].mesh.vao
         floor_tex = self.load_texture_2d("textures/tile_floor.jpg")
         self.floor = SceneObject(floor_mesh, floor_tex)
         self.floor.position = list([0, -0.01, 0]) # Place the floor just slightly below the object
 
-        # Setup orbit camera params
+        # Setup orbit camera
         self.cam = OrbitCamera(radius=1)
         self.cam_speed = 2.5 # Camera speed when moving
 
     def process_frames(self):
+        """Secondary thread that continuously provides frames to the gesture recognizer. At webcam native framerate, it
+        will check if the input queue is empty, and insert a frame if available. If the queue is full, it destroys the frame 
+        and captures a new frame.
+        """
         # OpenCV webcam
         self.cap = cv2.VideoCapture(0)
 
         while self.processing_active:
             ret, frame = self.cap.read()
             if ret:
-                # frame = cv2.flip(frame, 1)
-                # cv2.imshow("Webcam", frame)  # display the frame in another window
-                # self.frame = frame
 
                 if not self.input_queue.full():           # Will only add a frame to the queue if it's empty and ready to be examined by the model
                     self.input_queue.put(frame.copy())    # Copy will create a standalone frame to save here, rather than passing a reference to the original frame.
 
-                # time.sleep(5) ### Add artificial lag here if desired for testing
 
     def run_gesture_model(self):
-        """Tertiary thread that runs the gesture recognizer model. Will try to intake an image from the queue and process it
-        Otherwise it will skip and continue to the next loop
+        """Tertiary thread that runs the gesture recognizer model. Will try to intake an image from the queue and process it, annotating the
+        gesture and drawing the hand skelet on the frame before inserting it into the queue. If the queue is full, it will skip and continue to the next loop. If the model fails to detect a gesture, it will pass the unaltered frame
+        along to the output queue.
         """
         last_update = 0
 
@@ -139,18 +137,9 @@ class Scene(WindowConfig):
         # Panning is relative to the camera axis projected onto world X-Z for natural
         self.handle_movement(frame_time)
 
-        # Object event listener.
-        # O/K/L/; will translate the object along the X- or Z- axis (absolute, world scales)
-        # RT/FG/VB will rotate the model about the X, Y, Z axes, respectively
-        # YU/HJ/NM will scale the model in the X, Y, Z axes, respectively
-        self.handle_object(self.object, frame_time) # Keyboard inputs
-
         ##### Model command inputs go here
         # Send commands from gesture to the object... The declaration can change
         self.handle_gesture(self.object, frame_time)
-
-
-        #####
 
         # This sets the background color and enables a depth test to improve rendering
         self.ctx.clear(0.1, 0.1, 0.1)
@@ -174,64 +163,16 @@ class Scene(WindowConfig):
         self.object.render(self.prog, texture_unit=0)
         self.floor.render(self.prog, texture_unit=1, uv_scale=1)
 
-        # Update to most recent frame
+        # Updates the webcam frame to most recent one available
         if self.output_queue.full():
             self.frame = self.output_queue.get()
-        # Display frame if available
+
+        # Display webcam frame, if available
         if self.frame is not None:
             cv2.imshow("Webcam", cv2.flip(self.frame, 1))
             cv2.waitKey(1)
 
-    def handle_object(self, object: SceneObject, dt:float) -> None:
-        """Key listener to adjust scene object parameters. Currently only supports adjusting one object
-        at any time.
-
-        Args:
-            object (SceneObject): The object to manipulate
-            dt (float): The delta time from the last frame.
-        """
-        keys = self.wnd.keys
-        speed = object.translation_speed * dt
-        rot_speed = object.rotation_speed * dt
-        scale_speed = object.scale_speed * dt
-
-        # Translations
-        if self.wnd.is_key_pressed(keys.O): object.position[2] -= speed # Forward
-        if self.wnd.is_key_pressed(keys.L): object.position[2] += speed # Back
-
-        if self.wnd.is_key_pressed(keys.K): object.position[0] -= speed # Left
-        if self.wnd.is_key_pressed(keys.SEMICOLON): object.position[0] += speed # Right
-
-        if self.wnd.is_key_pressed(keys.I): object.position[1] += speed # Up
-        if self.wnd.is_key_pressed(keys.P): object.position[1] -= speed # Down
-
-        # Rotations
-        if self.wnd.is_key_pressed(keys.R): object.rotation[0] += rot_speed # ',' Rotate about X axis
-        if self.wnd.is_key_pressed(keys.T): object.rotation[0] -= rot_speed # '.' Rotate about X axis
-
-        if self.wnd.is_key_pressed(keys.F): object.rotation[1] += rot_speed # ',' Rotate about Y axis
-        if self.wnd.is_key_pressed(keys.G): object.rotation[1] -= rot_speed # '.' Rotate about Y axis
-
-        if self.wnd.is_key_pressed(keys.V): object.rotation[2] += rot_speed # ',' Rotate about Y axis
-        if self.wnd.is_key_pressed(keys.B): object.rotation[2] -= rot_speed # '.' Rotate about Y axis
-
-        # Scales
-        if self.wnd.is_key_pressed(keys.Y): object.scale[0] = max(0.1, object.scale[0] - scale_speed)
-        if self.wnd.is_key_pressed(keys.U): object.scale[0] = min(10.0, object.scale[0] + scale_speed)
-
-        if self.wnd.is_key_pressed(keys.H): object.scale[1] = max(0.1, object.scale[1] - scale_speed)
-        if self.wnd.is_key_pressed(keys.J): object.scale[1] = min(10.0, object.scale[1] + scale_speed)
-
-        if self.wnd.is_key_pressed(keys.N): object.scale[2] = max(0.1, object.scale[2] - scale_speed)
-        if self.wnd.is_key_pressed(keys.M): object.scale[2] = min(10.0, object.scale[2] + scale_speed)
-
-        if self.wnd.is_key_pressed(keys.BACKSPACE):
-            object.position = [0, 0, 0]
-            object.rotation = [0, 0, 0]
-            object.scale = [1, 1, 1]
-
-
-
+    
     def handle_movement(self, dt: float) -> None:
         """Key listener to control the orbital camera. It may be rotated about its central point,
         panned across the scene, or brought in closer/further from the center (zoom)
