@@ -179,7 +179,7 @@ class Scene(WindowConfig):
             self.frame = self.output_queue.get()
         # Display frame if available
         if self.frame is not None:
-            cv2.imshow("Webcam", self.frame)
+            cv2.imshow("Webcam", cv2.flip(self.frame, 1))
             cv2.waitKey(1)
 
     def handle_object(self, object: SceneObject, dt:float) -> None:

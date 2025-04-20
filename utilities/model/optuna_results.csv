@@ -1,5 +1,4 @@
 trial,hidden_dim1,hidden_dim2,dropout_rate,activation,use_batchnorm,lr,optimizer,batch_size,accuracy,time_seconds
-0,128,64,0.27268055041223677,<class 'torch.nn.modules.activation.ReLU'>,True,0.08131973593259197,sgd,32,96.1039,1456.79
 0,128,64,0.31372341585741503,<class 'torch.nn.modules.activation.Tanh'>,True,0.09103961114325865,sgd,64,98.229,2678.39
 1,128,64,0.28248088364423396,<class 'torch.nn.modules.activation.Tanh'>,True,0.06485185427277619,adam,64,96.8123,1747.19
 2,128,64,0.3966243948933801,<class 'torch.nn.modules.activation.Tanh'>,True,0.001981101447451983,adam,64,98.229,2039.19

@@ -12,10 +12,10 @@ class GestureClassifier(nn.Module):
         self.net = nn.Sequential(
             nn.Linear(input_dim, 128),
             nn.BatchNorm1d(128),
-            nn.ReLU(),
-            nn.Dropout(0.3),
+            nn.Tanh(),
+            nn.Dropout(0.3966),
             nn.Linear(128, 64),
-            nn.ReLU(),
+            nn.Tanh(),
             nn.Linear(64, num_classes)
         )
 
