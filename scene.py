@@ -27,7 +27,6 @@ class Scene(WindowConfig):
     sampels = 4 # multi-sampling
     resizable = False
     vsync = True
-    use_imgui = True
 
     def __init__(self, **kwargs):
         """Initializes the program and its components. Args include the modernGL context, window size,
@@ -37,8 +36,8 @@ class Scene(WindowConfig):
         super().__init__(**kwargs)
         self.wnd.ctx.error
 
-        self.q = queue.Queue(1) # Create a queue to hold the most recent frame
-        
+        self.input_queue = queue.Queue(1) # Create a queue to hold the most recent frame
+        self.output_queue = queue.Queue(1)
         self.frame = None
 
         # State changer and gesture recognizer will modify the object parameters
@@ -96,10 +95,10 @@ class Scene(WindowConfig):
             if ret:
                 # frame = cv2.flip(frame, 1)
                 # cv2.imshow("Webcam", frame)  # display the frame in another window
-                self.frame = frame
+                # self.frame = frame
 
-                if not self.q.full():           # Will only add a frame to the queue if it's empty and ready to be examined by the model
-                    self.q.put(frame.copy())    # Copy will create a standalone frame to save here, rather than passing a reference to the original frame.
+                if not self.input_queue.full():           # Will only add a frame to the queue if it's empty and ready to be examined by the model
+                    self.input_queue.put(frame.copy())    # Copy will create a standalone frame to save here, rather than passing a reference to the original frame.
 
                 # time.sleep(5) ### Add artificial lag here if desired for testing
 
@@ -111,12 +110,18 @@ class Scene(WindowConfig):
 
         while self.processing_active:
             try:
-                frame = self.q.get()    # optionally, add timeout=1 to give a 1 second delay to wait for a new frame
+                frame = self.input_queue.get()    # optionally, add timeout=1 to give a 1 second delay to wait for a new frame
                 self.gesture_recognizer.process(frame)
+
+                if not self.output_queue.full():
+                    self.output_queue.put(frame.copy())
 
             # Empty queue will raise exception. Could also change this flow to check for empty queue before taking to avoid
             # error handling as control flow
             except:
+                # if no gestures, pass the frame through unannotated
+                if not self.output_queue.full():
+                    self.output_queue.put(frame.copy())
                 continue                # Otherwise, continue for another loop
 
     def on_render(self, time:float , frame_time: float) -> None:
@@ -126,10 +131,7 @@ class Scene(WindowConfig):
             time (float): The time of the start of the rendering.
             frame_time (float): The time since the last frame
         """
-        
-        if self.frame is not None:
-            cv2.imshow("Webcam", self.frame)
-        
+
         # Camera event listener.
         # WASD will move camera orbit camera Up/Down/Left/Right
         # Q/E will zoom in/out
@@ -171,6 +173,14 @@ class Scene(WindowConfig):
         # Renders each mesh individually. Internally, it will determine its texture and create a model matrix
         self.object.render(self.prog, texture_unit=0)
         self.floor.render(self.prog, texture_unit=1, uv_scale=1)
+
+        # Update to most recent frame
+        if self.output_queue.full():
+            self.frame = self.output_queue.get()
+        # Display frame if available
+        if self.frame is not None:
+            cv2.imshow("Webcam", self.frame)
+            cv2.waitKey(1)
 
     def handle_object(self, object: SceneObject, dt:float) -> None:
         """Key listener to adjust scene object parameters. Currently only supports adjusting one object

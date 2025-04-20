@@ -144,14 +144,14 @@ def log_trial_to_csv(trial_number, config, best_val_acc, time_elapsed):
 # ----------------- Optuna Objective -------------------
 def objective(trial):
     config = {
-        "hidden_dim1": 128,  # fixed from best trial
-        "hidden_dim2": 64,   # fixed
+        "hidden_dim1": trial.suggest_categorical("hidden_dim1", [64, 128, 256]),
+        "hidden_dim2": trial.suggest_categorical("hidden_dim2", [32, 64]),
         "dropout_rate": trial.suggest_float("dropout_rate", 0.2, 0.5),
         "activation": trial.suggest_categorical("activation", [nn.ReLU, nn.Tanh]),
-        "use_batchnorm": True,  # fixed
-        "lr": trial.suggest_float("lr", 0.001, 0.1),
+        "use_batchnorm": trial.suggest_categorical("use_batchnorm", [True, False]),
+        "lr": trial.suggest_float("lr", 1e-2, 1e-1, log=True),
         "optimizer": trial.suggest_categorical("optimizer", ["adam", "sgd"]),
-        "batch_size": trial.suggest_categorical("batch_size", [64]),
+        "batch_size": trial.suggest_categorical("batch_size", [16, 32]),
     }
 
     print(f"\n🔧 Starting trial {trial.number} with configuration:")
@@ -208,7 +208,7 @@ def main():
 
     # Run Optuna
     study = optuna.create_study(direction="maximize")
-    study.optimize(objective, n_trials=10)
+    study.optimize(objective, n_trials=30)
 
     print("Best trial:")
     trial = study.best_trial
