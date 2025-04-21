@@ -72,7 +72,7 @@ class Scene(WindowConfig):
 
         obj_mesh = self.load_scene("models/crate.obj").root_nodes[0].mesh.vao
         obj_tex = self.load_texture_2d("textures/crate.jpg")
-        self.object = SceneObject(obj_mesh, obj_tex, self.state_changer)
+        self.object = SceneObject(obj_mesh, obj_tex)
 
         floor_mesh = self.load_scene("models/floor.obj").root_nodes[0].mesh.vao
         floor_tex = self.load_texture_2d("textures/tile_floor.jpg")
@@ -218,7 +218,7 @@ class Scene(WindowConfig):
             rotation_delta = self.state_changer.rotation_delta
             translation_delta = self.state_changer.translation_delta
 
-        if object.state_changer:
+        if self.state_changer:
             # Scale in all 3 axes at once
             for i in range(3):
                 target_scale = object.scale[i] + scale_delta * dt
