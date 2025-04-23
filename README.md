@@ -14,7 +14,7 @@ The system uses MediaPipe for hand landmark detection and a custom-trained PyTor
 
 ## Demo Videos
 
-- [Demo Video](#) _(Link will be added)_
+- [Demo Video](https://www.youtube.com/watch?v=ZyzjnK2vaBM)
 
 ## Setup Instructions
 
